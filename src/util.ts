@@ -51,6 +51,29 @@ export function formatDate(iso: string): string {
   });
 }
 
+export function formatMonthYear(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+  });
+}
+
+export function daysBetween(aIso: string, bIso: string): number {
+  const a = new Date(aIso + "T12:00:00").getTime();
+  const b = new Date(bIso + "T12:00:00").getTime();
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+export function addDays(iso: string, days: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function uid(): string {
   return (
     Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
