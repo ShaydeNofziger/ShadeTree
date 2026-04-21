@@ -1,0 +1,17 @@
+{
+  "name": "shadetree",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A skydiver's living logbook — your jumps, rendered as a seasonal tree, with a Wind Oracle whispering fortunes from altitude.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
