@@ -32,6 +32,24 @@
             <svg id="tree" viewBox="0 0 900 700" preserveAspectRatio="xMidYMax meet" aria-label="Your jump history, as a tree"></svg>
             <aside id="leaf-tooltip" class="leaf-tooltip" hidden></aside>
           </div>
+          <div class="timeline" id="timeline" hidden>
+            <div class="timeline-head">
+              <span class="timeline-label">Season</span>
+              <output id="timeline-date" for="timeline-scrubber">—</output>
+              <button type="button" id="timeline-today" class="timeline-today" aria-label="Jump to today">today</button>
+            </div>
+            <input
+              type="range"
+              id="timeline-scrubber"
+              class="timeline-scrubber"
+              min="0"
+              max="0"
+              value="0"
+              step="1"
+              aria-label="Rewind through career timeline"
+            />
+            <div class="timeline-ticks" id="timeline-ticks" aria-hidden="true"></div>
+          </div>
           <div class="tree-legend">
             <div class="stat"><span id="stat-jumps">0</span><small>jumps</small></div>
             <div class="stat"><span id="stat-years">0</span><small>seasons</small></div>
