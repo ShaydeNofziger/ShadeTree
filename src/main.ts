@@ -67,11 +67,15 @@ function renderStats() {
   statYears.textContent = String(years);
   const disc = new Set(state.jumps.map((j) => j.discipline)).size;
   statDisciplines.textContent = String(disc);
-  const ff = state.jumps.reduce(
+  const ffFeet = state.jumps.reduce(
     (s, j) => s + Math.max(0, j.exitAltitude - j.deploymentAltitude),
     0,
   );
-  statAltitude.textContent = ff.toLocaleString();
+  const miles = ffFeet / 5280;
+  statAltitude.textContent =
+    miles >= 100
+      ? Math.round(miles).toLocaleString()
+      : miles.toFixed(1);
 }
 
 function renderList() {

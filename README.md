@@ -11,8 +11,11 @@ look at:
 
 - **Canopy** — your jumps rendered as an SVG tree. Trunk grows with the number
   of seasons you've been jumping. Branches fan out, one per discipline you've
-  flown. Each leaf is a single jump, sized by freefall distance, colored by the
-  season it happened in. Hover a leaf to see where it came from.
+  flown (up to ten — belly, freefly, tracking, swoop, wingsuit, hop & pop,
+  plus instructor work: coach, AFF, tandem). Each leaf is a single jump, sized
+  by freefall distance, colored by the season it happened in. The sample
+  dataset is a ~7,000-jump, 18-year professional career so the tree is
+  immediately dense and rich; real logbooks grow into it one leaf at a time.
 - **Logbook** — a simple form and list for adding jumps. Everything persists
   to `localStorage` on your device.
 - **Wind Oracle** — a deterministic-per-hour fortune generator. It reads the
@@ -95,16 +98,20 @@ Then open <http://localhost:5173>.
 Other scripts:
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run build       # typecheck + production bundle -> dist/
-npm run preview     # serve the production bundle locally
+npm run typecheck    # tsc --noEmit
+npm run build        # typecheck + production bundle -> dist/
+npm run preview      # serve the production bundle locally
+npm run seed:check   # print the sample career's distribution stats
+npm run render:check # headless-render the full seed under jsdom, time it
 ```
 
 ## How to use it
 
-1. Start on **Canopy** — you'll see a seeded tree with roughly three seasons
-   of varied jumps so the visualization is immediately interesting. Hover a
-   leaf to see its jump.
+1. Start on **Canopy** — you'll see a seeded tree representing a fictional
+   18-year pro career: student jumps taper into belly + freefly, coach and
+   AFF/tandem branches appear as ratings stack up, and swoop + wingsuit
+   bloom later. Hover any leaf to see its jump. Branch tips show jump counts
+   per discipline so the tree doubles as a legend.
 2. Switch to **Logbook** to add your own. The form defaults to a belly
    jump from 13,500 to 4,500. Hit **Plant leaf**, pop back to **Canopy**,
    and watch it appear.
@@ -139,8 +146,13 @@ contributor / agent brief. Short version:
   `<option>` to `index.html`.
 - **Tune the Oracle:** add templates to `OPENERS` / `BODIES` / `CLOSERS` in
   `src/oracle.ts`. Keep the tone poetic and avoid giving a real forecast.
-- **Swap the seed data:** edit `src/seed.ts`. The sample plan is ~50 jumps
-  across three seasons so the tree shows progression.
+- **Swap the seed data:** edit `src/seed.ts`. The sample is a phased career
+  generator — six life-phases (student → licensed novice → coach track →
+  AFF/tandem rating → peak pro → specialist/mentor), each with its own
+  discipline mix, monthly jump rate, and travel bias. The generator is
+  seeded with `mulberry32` so the same `CLAUDE.md` commit always produces
+  the same tree. `npm run seed:check` prints distribution stats; `npm run
+  render:check` dry-runs the full SVG render under jsdom and times it.
 
 ## Non-goals
 

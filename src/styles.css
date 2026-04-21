@@ -16,6 +16,9 @@
   --disc-tracking: #c04a6b;
   --disc-hop-pop: #b08a3a;
   --disc-student: #7a7a7a;
+  --disc-coach: #2f7a66;
+  --disc-aff: #e07b3c;
+  --disc-tandem: #5a7aa5;
 
   color-scheme: light;
 }
@@ -451,6 +454,9 @@ button.ghost:hover {
 .disc-tracking { background: var(--disc-tracking); }
 .disc-hop-pop { background: var(--disc-hop-pop); }
 .disc-student { background: var(--disc-student); }
+.disc-coach { background: var(--disc-coach); }
+.disc-aff { background: var(--disc-aff); }
+.disc-tandem { background: var(--disc-tandem); }
 
 .jump-date {
   font-weight: 600;

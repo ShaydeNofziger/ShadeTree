@@ -9,6 +9,9 @@ const DISC_BADGE: Record<Discipline, string> = {
   tracking: "Tracking",
   "hop-pop": "H&P",
   student: "Student",
+  coach: "Coach",
+  aff: "AFF",
+  tandem: "Tandem",
 };
 
 export function renderJumpList(
@@ -41,7 +44,12 @@ export function renderJumpList(
     return;
   }
 
-  for (const j of sorted) {
+  // Cap the visible list — a career can be thousands of jumps.
+  const MAX_VISIBLE = 300;
+  const shown = sorted.slice(0, MAX_VISIBLE);
+  const hidden = sorted.length - shown.length;
+
+  for (const j of shown) {
     const li = document.createElement("li");
     li.className = "jump-item";
     li.dataset.id = j.id;
@@ -90,5 +98,14 @@ export function renderJumpList(
     }
 
     root.append(li);
+  }
+
+  if (hidden > 0) {
+    const more = document.createElement("li");
+    more.className = "jump-empty";
+    more.textContent =
+      `Showing ${shown.length.toLocaleString()} of ` +
+      `${sorted.length.toLocaleString()} jumps — refine the search to see more.`;
+    root.append(more);
   }
 }

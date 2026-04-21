@@ -12,7 +12,9 @@ ShadeTree is a single-page web app built with **Vite + TypeScript + vanilla DOM*
    one per discipline flown. Each leaf is a jump, sized by freefall distance
    and colored by season. Hover a leaf to see the jump.
 2. **Logbook** — add/delete jumps. Persists to `localStorage` under
-   `shadetree:v1:jumps`. A "Reset to sample tree" button restores seeded data.
+   `shadetree:v2:jumps` (bump the version when the seed shape changes so
+   returning users auto-reseed). A "Reset to sample tree" button restores
+   seeded data.
 3. **Wind Oracle** — a deterministic-per-hour fortune generator. Pulls from
    mad-libs style templates plus the logbook to produce a mantra, a compass
    heading, and a light "forecast" card.
@@ -26,7 +28,7 @@ src/
   logbook.ts    # jump list + filter
   oracle.ts     # mantra generator (seeded PRNG)
   store.ts      # localStorage + seed bootstrapping
-  seed.ts       # sample jump history used on first run
+  seed.ts       # phased career generator (~7k jumps over ~17 years)
   types.ts      # Jump / Discipline / Season
   util.ts       # PRNG (mulberry32), FNV hash, seasons, formatting
   styles.css    # cozy, earthy palette (light + dark)
@@ -51,7 +53,8 @@ tsconfig.json   # strict, bundler resolution
 ## Domain notes
 
 - **Discipline** enum: `belly`, `freefly`, `swoop`, `wingsuit`, `tracking`,
-  `hop-pop`, `student`. Adding one requires:
+  `hop-pop`, `student`, `coach`, `aff`, `tandem`. The last three represent
+  instructor / rated-work jumps. Adding one requires:
   - updating `Discipline` in `src/types.ts`
   - adding a `DISCIPLINE_LABEL` + `DISCIPLINE_ORDER` entry in `src/tree.ts`
   - adding a `DISC_BADGE` entry in `src/logbook.ts`

@@ -5,7 +5,10 @@ export type Discipline =
   | "wingsuit"
   | "tracking"
   | "hop-pop"
-  | "student";
+  | "student"
+  | "coach"
+  | "aff"
+  | "tandem";
 
 export interface Jump {
   id: string;

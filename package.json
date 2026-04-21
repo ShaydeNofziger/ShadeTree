@@ -8,9 +8,14 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:check": "tsx scripts/seed-check.ts",
+    "render:check": "tsx scripts/render-check.ts"
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.1",
+    "jsdom": "^29.0.2",
+    "tsx": "^4.19.0",
     "typescript": "^5.4.5",
     "vite": "^5.2.11"
   }

@@ -1,7 +1,7 @@
 import type { Jump } from "./types.ts";
 import { sampleJumps } from "./seed.ts";
 
-const KEY = "shadetree:v1:jumps";
+const KEY = "shadetree:v2:jumps";
 
 export function loadJumps(): Jump[] {
   try {

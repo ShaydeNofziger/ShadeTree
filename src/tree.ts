@@ -11,10 +11,17 @@ const DISCIPLINE_LABEL: Record<Discipline, string> = {
   tracking: "Tracking",
   "hop-pop": "Hop & Pop",
   student: "Student",
+  coach: "Coach",
+  aff: "AFF Instr.",
+  tandem: "Tandem",
 };
 
+// Ordered by career arc: student → teaching → flat flying → angles/speed → canopy.
 const DISCIPLINE_ORDER: Discipline[] = [
   "student",
+  "aff",
+  "tandem",
+  "coach",
   "belly",
   "freefly",
   "tracking",
@@ -35,6 +42,14 @@ export function renderTree(
   onLeafHover: (h: LeafHover | null) => void,
 ): void {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
+  // Wipe any previous delegated handler.
+  const prev = (svg as SvgWithHandlers).__shadetreeHandlers;
+  if (prev) {
+    svg.removeEventListener("mouseover", prev.over);
+    svg.removeEventListener("mouseout", prev.out);
+    svg.removeEventListener("focusin", prev.over);
+    svg.removeEventListener("focusout", prev.out);
+  }
 
   const W = 900;
   const H = 700;
@@ -90,9 +105,11 @@ export function renderTree(
   const sorted = [...jumps].sort((a, b) => a.date.localeCompare(b.date));
   const years = new Set(sorted.map((j) => j.date.slice(0, 4)));
   const yearCount = years.size;
+  const jumpById = new Map<string, Jump>();
+  for (const j of sorted) jumpById.set(j.id, j);
 
   // Trunk — height scales with seasons.
-  const trunkHeight = Math.min(220, 110 + yearCount * 28);
+  const trunkHeight = Math.min(300, 110 + yearCount * 14);
   const forkY = groundY - trunkHeight;
   const trunkWidth = 36;
 
@@ -130,20 +147,30 @@ export function renderTree(
   );
 
   const n = disciplines.length;
-  // Fan angles — spread from -65deg (left) to +65deg (right), skipping center when possible.
+  // Wider fan (up to 165°) so 8–10 branches don't crowd the trunk.
   const angles = fanAngles(n);
 
+  // Dense foliage gets smaller & more translucent leaves so overlap reads well.
+  const total = sorted.length;
+  const leafScale =
+    total > 4000 ? 0.35 : total > 2000 ? 0.5 : total > 800 ? 0.7 : 1;
+  const leafOpacity =
+    total > 4000 ? 0.55 : total > 2000 ? 0.7 : total > 800 ? 0.85 : 1;
+  const leafStrokeW = total > 2000 ? 0 : 0.6;
+
   const branchLenBase = 230;
-  const branchGroupByDisc: Record<string, Array<{ x: number; y: number; jump: Jump }>> = {};
+  const leavesLayer = el("g");
+  leavesLayer.setAttribute("class", "leaves");
 
   disciplines.forEach((disc, idx) => {
     const angleDeg = angles[idx]!;
     const angle = (angleDeg * Math.PI) / 180;
     const discJumps = sorted.filter((j) => j.discipline === disc);
 
-    // Branch length grows with jump count for that discipline.
+    // Branch length grows with log(jump count) so 2000-jump branches
+    // don't become 10× longer than 50-jump ones.
     const branchLen =
-      branchLenBase + Math.min(120, discJumps.length * 6);
+      branchLenBase + Math.min(160, Math.log2(discJumps.length + 1) * 22);
 
     // Branch curves: start at fork, out with slight sag.
     const startX = trunkBaseX;
@@ -155,7 +182,6 @@ export function renderTree(
     const midY = startY - Math.cos(angle) * branchLen * 0.5 + 24;
 
     const branchPath = `M ${startX} ${startY} Q ${midX} ${midY} ${endX} ${endY}`;
-    // Branch stroke.
     svg.append(
       pathStroke(branchPath, "#6b4a2b", 10, undefined, "round"),
     );
@@ -166,63 +192,103 @@ export function renderTree(
     // Label near branch tip.
     const labelX = endX + Math.sin(angle) * 18;
     const labelY = endY - Math.cos(angle) * 18;
-    const label = text(labelX, labelY, DISCIPLINE_LABEL[disc], "#3a2a1c", 14);
+    const label = text(labelX, labelY, DISCIPLINE_LABEL[disc], "#3a2a1c", 13);
     label.setAttribute(
       "text-anchor",
       angleDeg < -8 ? "end" : angleDeg > 8 ? "start" : "middle",
     );
     label.setAttribute("font-weight", "600");
-    svg.append(label);
+    // Small jump count alongside the label gives a legend for big trees.
+    const countLabel = text(
+      labelX,
+      labelY + 14,
+      `${discJumps.length}`,
+      "#5a4532",
+      11,
+    );
+    countLabel.setAttribute(
+      "text-anchor",
+      angleDeg < -8 ? "end" : angleDeg > 8 ? "start" : "middle",
+    );
+    countLabel.setAttribute("font-style", "italic");
+    svg.append(label, countLabel);
 
-    // Leaves along the branch.
-    const prng = mulberry32(hashString(disc));
-    const spots: Array<{ x: number; y: number; jump: Jump }> = [];
+    // Leaves along the branch. Use a seeded PRNG per discipline for stability.
+    const prng = mulberry32(hashString(disc + ":" + discJumps.length));
 
+    // Precompute curve tangent components for perpendicular offset.
     discJumps.forEach((jump, i) => {
-      // t goes from 0.25 (near trunk) to 1.0 (tip).
-      const t = 0.25 + (i / Math.max(1, discJumps.length - 1)) * 0.75;
+      const t = 0.22 + (i / Math.max(1, discJumps.length - 1)) * 0.78;
       const bx = bezierAt(startX, midX, endX, t);
       const by = bezierAt(startY, midY, endY, t);
 
-      // Jitter perpendicular to branch so leaves cluster naturally.
       const tangentX = 2 * (1 - t) * (midX - startX) + 2 * t * (endX - midX);
       const tangentY = 2 * (1 - t) * (midY - startY) + 2 * t * (endY - midY);
       const tangentLen = Math.hypot(tangentX, tangentY) || 1;
       const perpX = -tangentY / tangentLen;
       const perpY = tangentX / tangentLen;
 
-      const jitter = (prng() - 0.5) * 44;
-      const along = (prng() - 0.5) * 10;
+      // Perpendicular jitter widens for later jumps so branches look fuller at the tip.
+      const spread = 30 + Math.min(38, discJumps.length / 40) + t * 14;
+      const jitter = (prng() - 0.5) * spread * 2;
+      const along = (prng() - 0.5) * 14;
       const lx = bx + perpX * jitter + (tangentX / tangentLen) * along;
       const ly = by + perpY * jitter + (tangentY / tangentLen) * along;
-
-      spots.push({ x: lx, y: ly, jump });
 
       const freefall = Math.max(
         1000,
         jump.exitAltitude - jump.deploymentAltitude,
       );
-      const r = 4 + Math.min(6, freefall / 2200);
+      const r = (3 + Math.min(5, freefall / 2400)) * leafScale;
       const leafColor = seasonColor(seasonOf(jump.date));
 
       const leaf = circle(lx, ly, r, leafColor);
-      leaf.setAttribute("stroke", "rgba(32,24,16,0.35)");
-      leaf.setAttribute("stroke-width", "0.6");
+      if (leafStrokeW > 0) {
+        leaf.setAttribute("stroke", "rgba(32,24,16,0.35)");
+        leaf.setAttribute("stroke-width", String(leafStrokeW));
+      }
+      if (leafOpacity < 1) {
+        leaf.setAttribute("opacity", String(leafOpacity));
+      }
       leaf.classList.add("leaf");
       leaf.dataset.jumpId = jump.id;
-      leaf.style.cursor = "pointer";
-      leaf.addEventListener("mouseenter", () =>
-        onLeafHover({ jump, x: lx, y: ly }),
-      );
-      leaf.addEventListener("mouseleave", () => onLeafHover(null));
-      leaf.addEventListener("focus", () => onLeafHover({ jump, x: lx, y: ly }));
-      leaf.addEventListener("blur", () => onLeafHover(null));
-      leaf.setAttribute("tabindex", "0");
-      svg.append(leaf);
+      leaf.dataset.lx = String(lx);
+      leaf.dataset.ly = String(ly);
+      leavesLayer.append(leaf);
     });
-
-    branchGroupByDisc[disc] = spots;
   });
+
+  svg.append(leavesLayer);
+
+  // Event delegation — one pair of listeners handles thousands of leaves.
+  const handleOver = (ev: Event) => {
+    const target = ev.target as Element;
+    if (!(target instanceof SVGCircleElement)) return;
+    if (!target.classList.contains("leaf")) return;
+    const id = target.dataset.jumpId;
+    if (!id) return;
+    const j = jumpById.get(id);
+    if (!j) return;
+    onLeafHover({
+      jump: j,
+      x: Number(target.dataset.lx),
+      y: Number(target.dataset.ly),
+    });
+  };
+  const handleOut = (ev: Event) => {
+    const target = ev.target as Element;
+    if (target instanceof SVGCircleElement && target.classList.contains("leaf")) {
+      onLeafHover(null);
+    }
+  };
+  svg.addEventListener("mouseover", handleOver);
+  svg.addEventListener("mouseout", handleOut);
+  svg.addEventListener("focusin", handleOver);
+  svg.addEventListener("focusout", handleOut);
+  (svg as SvgWithHandlers).__shadetreeHandlers = {
+    over: handleOver,
+    out: handleOut,
+  };
 
   // Gentle floating falling-leaf flourish using last jump.
   const last = sorted[sorted.length - 1]!;
@@ -233,10 +299,15 @@ export function renderTree(
   svg.append(flourish);
 }
 
+interface SvgWithHandlers extends SVGSVGElement {
+  __shadetreeHandlers?: { over: (e: Event) => void; out: (e: Event) => void };
+}
+
 function fanAngles(n: number): number[] {
   if (n <= 0) return [];
   if (n === 1) return [0];
-  const spread = 130; // degrees total
+  // Widen the fan as more disciplines appear so branches never overlap.
+  const spread = Math.min(165, 110 + n * 8);
   const step = spread / (n - 1);
   const start = -spread / 2;
   return Array.from({ length: n }, (_, i) => start + step * i);
