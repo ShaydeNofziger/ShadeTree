@@ -3,6 +3,8 @@
 export interface PanZoom {
   /** Call after re-rendering to fit the viewBox to actual content. */
   fitContent(): void;
+  /** Reset to the fitted view (undo all pan/zoom). */
+  resetView(): void;
   /** Remove all listeners. */
   destroy(): void;
 }
@@ -16,8 +18,17 @@ export function initPanZoom(svg: SVGSVGElement): PanZoom {
   let startX = 0;
   let startY = 0;
 
+  let fitVB = { x: 0, y: 0, w: 900, h: 700 };
+
   function apply() {
     svg.setAttribute("viewBox", `${vbX} ${vbY} ${vbW} ${vbH}`);
+    const sky = svg.getElementById("sky-bg");
+    if (sky) {
+      sky.setAttribute("x", String(vbX));
+      sky.setAttribute("y", String(vbY));
+      sky.setAttribute("width", String(vbW));
+      sky.setAttribute("height", String(vbH));
+    }
   }
 
   function fitContent() {
@@ -27,15 +38,16 @@ export function initPanZoom(svg: SVGSVGElement): PanZoom {
     vbY = bbox.y - pad;
     vbW = bbox.width + pad * 2;
     vbH = bbox.height + pad * 2;
+    fitVB = { x: vbX, y: vbY, w: vbW, h: vbH };
     apply();
-    // Stretch the sky backdrop to cover the full viewBox.
-    const sky = svg.getElementById("sky-bg");
-    if (sky) {
-      sky.setAttribute("x", String(vbX));
-      sky.setAttribute("y", String(vbY));
-      sky.setAttribute("width", String(vbW));
-      sky.setAttribute("height", String(vbH));
-    }
+  }
+
+  function resetView() {
+    vbX = fitVB.x;
+    vbY = fitVB.y;
+    vbW = fitVB.w;
+    vbH = fitVB.h;
+    apply();
   }
 
   function onWheel(e: WheelEvent) {
@@ -91,6 +103,7 @@ export function initPanZoom(svg: SVGSVGElement): PanZoom {
 
   return {
     fitContent,
+    resetView,
     destroy() {
       svg.removeEventListener("wheel", onWheel);
       svg.removeEventListener("pointerdown", onPointerDown);
