@@ -1,21 +1,21 @@
 import "./styles.css";
-import { loadJumps, resetToSeed, saveJumps } from "./store.ts";
+import { loadJumps, loadScenario, saveJumps } from "./store.ts";
+import { SCENARIOS } from "./seed.ts";
 import { renderTree, type LeafHover } from "./tree.ts";
 import { renderJumpList } from "./logbook.ts";
-import { rollFortune, type Fortune } from "./oracle.ts";
+import { renderHighlights } from "./highlights.ts";
 import { formatDate, uid } from "./util.ts";
 import type { Discipline, Jump } from "./types.ts";
+import { initPanZoom } from "./panzoom.ts";
 
 interface State {
   jumps: Jump[];
   filter: string;
-  fortune: Fortune | null;
 }
 
 const state: State = {
   jumps: loadJumps(),
   filter: "",
-  fortune: null,
 };
 
 const svg = document.getElementById("tree") as unknown as SVGSVGElement;
@@ -27,13 +27,7 @@ const statAltitude = byId("stat-altitude");
 const jumpForm = document.getElementById("jump-form") as HTMLFormElement;
 const jumpList = document.getElementById("jump-list") as HTMLOListElement;
 const jumpSearch = document.getElementById("jump-search") as HTMLInputElement;
-const resetSeedBtn = document.getElementById("reset-seed") as HTMLButtonElement;
-const oracleRoll = document.getElementById("oracle-roll") as HTMLButtonElement;
-const oracleCopy = document.getElementById("oracle-copy") as HTMLButtonElement;
-const oracleQuote = document.getElementById("oracle-quote") as HTMLElement;
-const oracleForecast = document.getElementById("oracle-forecast") as HTMLElement;
-const oracleHeading = document.getElementById("oracle-heading") as HTMLElement;
-const oracleDial = document.getElementById("oracle-dial") as HTMLElement;
+const scenarioOptions = document.getElementById("scenario-options") as HTMLElement;
 
 function byId(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -52,12 +46,16 @@ document.querySelectorAll<HTMLButtonElement>(".tab").forEach((btn) => {
       p.classList.toggle("active", p.id === "panel-" + tab);
     });
     if (tab === "tree") drawTree();
+    if (tab === "highlights") renderHighlights(byId("highlights"), state.jumps);
   });
 });
 
 // Render helpers
+const pz = initPanZoom(svg);
+
 function drawTree() {
   renderTree(svg, state.jumps, onLeafHover);
+  pz.fitContent();
   renderStats();
 }
 
@@ -90,6 +88,7 @@ function onLeafHover(h: LeafHover | null) {
   const j = h.jump;
   const freefall = Math.max(0, j.exitAltitude - j.deploymentAltitude);
   tooltip.innerHTML =
+    (h.milestone ? `<div class="t-milestone">★ ${escapeHtml(h.milestone)}</div>` : "") +
     `<div class="t-date">${formatDate(j.date)}</div>` +
     `<div class="t-disc">${j.discipline}</div>` +
     `<div class="t-dz">${escapeHtml(j.dropzone)}</div>` +
@@ -102,10 +101,13 @@ function onLeafHover(h: LeafHover | null) {
   const svgRect = svg.getBoundingClientRect();
   const stageRect = stage.getBoundingClientRect();
   const vb = svg.viewBox.baseVal;
-  const sx = svgRect.width / vb.width;
-  const sy = svgRect.height / vb.height;
-  const px = (svgRect.left - stageRect.left) + h.x * sx + 14;
-  const py = (svgRect.top - stageRect.top) + h.y * sy - 14;
+  const scale = Math.min(svgRect.width / vb.width, svgRect.height / vb.height);
+  const renderedW = vb.width * scale;
+  const renderedH = vb.height * scale;
+  const offsetX = (svgRect.width - renderedW) / 2;
+  const offsetY = svgRect.height - renderedH; // xMidYMax
+  const px = (svgRect.left - stageRect.left) + offsetX + (h.x - vb.x) * scale + 14;
+  const py = (svgRect.top - stageRect.top) + offsetY + (h.y - vb.y) * scale - 14;
   tooltip.style.left = `${px}px`;
   tooltip.style.top = `${py}px`;
 }
@@ -145,52 +147,239 @@ jumpForm.addEventListener("submit", (ev) => {
   flash("Leaf planted.");
 });
 
-resetSeedBtn.addEventListener("click", () => {
-  if (!confirm("Reset your logbook to the sample tree? This clears your local jumps.")) return;
-  state.jumps = resetToSeed();
-  renderList();
-  drawTree();
-  flash("Tree reseeded.");
-});
+// Scenario picker
+for (const s of SCENARIOS) {
+  const btn = document.createElement("button");
+  btn.className = "ghost scenario-btn";
+  btn.innerHTML = `<strong>${s.label}</strong><span>${s.description}</span>`;
+  btn.addEventListener("click", () => {
+    if (!confirm(`Load "${s.label}" scenario? This replaces your current logbook.`)) return;
+    state.jumps = loadScenario(s.id);
+    renderList();
+    drawTree();
+    flash(`Loaded: ${s.label}`);
+  });
+  scenarioOptions.append(btn);
+}
 
 jumpSearch.addEventListener("input", () => {
   state.filter = jumpSearch.value;
   renderList();
 });
 
+// Export / Import / Merge
+function jumpKey(j: Jump): string {
+  return `${j.date}|${j.exitAltitude}|${j.deploymentAltitude}`;
+}
+
+byId("format-info").addEventListener("click", () => {
+  const example = `[
+  {
+    "date": "2025-06-14",
+    "discipline": "belly",
+    "exitAltitude": 13500,
+    "deploymentAltitude": 4500,
+    "dropzone": "Skydive Carolina",
+    "notes": "optional"
+  }
+]`;
+  const el = document.getElementById("format-popover");
+  if (el) { el.remove(); return; }
+  const pop = document.createElement("div");
+  pop.id = "format-popover";
+  pop.className = "format-popover";
+  pop.innerHTML = `<pre>${example}</pre><p>Disciplines: belly, freefly, swoop, wingsuit, tracking, hop-pop, student, coach, aff, tandem</p>`;
+  byId("format-info").parentElement!.append(pop);
+  const dismiss = (e: MouseEvent) => {
+    if (!pop.contains(e.target as Node) && e.target !== byId("format-info")) {
+      pop.remove();
+      document.removeEventListener("click", dismiss);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", dismiss), 0);
+});
+
+byId("export-jumps").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state.jumps, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `shadetree-logbook-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  flash("Logbook exported.");
+});
+
+function pickJSON(onSuccess: (jumps: Jump[]) => void) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string) as Jump[];
+        if (!Array.isArray(parsed) || !parsed.every((j) => j.date && j.discipline)) {
+          flash("Invalid logbook file."); return;
+        }
+        for (const j of parsed) { if (!j.id) j.id = uid(); }
+        onSuccess(parsed);
+      } catch { flash("Could not read file."); }
+    };
+    reader.readAsText(file);
+  });
+  input.click();
+}
+
+byId("import-jumps").addEventListener("click", () => {
+  pickJSON((parsed) => {
+    state.jumps = parsed;
+    saveJumps(state.jumps);
+    renderList();
+    drawTree();
+    flash(`Imported ${parsed.length} jumps.`);
+  });
+});
+
+byId("merge-jumps").addEventListener("click", () => {
+  pickJSON((parsed) => {
+    const existing = new Set(state.jumps.map(jumpKey));
+    const fresh = parsed.filter((j) => !existing.has(jumpKey(j)));
+    if (fresh.length === 0) { flash("No new jumps to merge."); return; }
+    state.jumps = [...state.jumps, ...fresh].sort((a, b) => a.date.localeCompare(b.date));
+    saveJumps(state.jumps);
+    renderList();
+    drawTree();
+    flash(`Merged ${fresh.length} new jump${fresh.length === 1 ? "" : "s"}.`);
+  });
+});
+
+// Delete confirmation
+const deleteModal = byId("delete-modal");
+const deleteConfirmBtn = byId("delete-confirm");
+const deleteCancelBtn = byId("delete-cancel");
+let pendingDeleteId = "";
+
 function deleteJump(id: string) {
-  state.jumps = state.jumps.filter((j) => j.id !== id);
+  pendingDeleteId = id;
+  deleteModal.hidden = false;
+  deleteConfirmBtn.focus();
+}
+
+function closeDelete() { deleteModal.hidden = true; pendingDeleteId = ""; }
+
+deleteConfirmBtn.addEventListener("click", () => {
+  state.jumps = state.jumps.filter((j) => j.id !== pendingDeleteId);
   saveJumps(state.jumps);
   renderList();
   drawTree();
-}
-
-// Oracle
-function renderFortune(f: Fortune) {
-  oracleQuote.textContent = f.mantra;
-  oracleHeading.textContent = `${f.direction} · ${f.windKnots} kt`;
-  oracleDial.style.setProperty("--heading", `${f.headingDeg}deg`);
-  oracleForecast.innerHTML =
-    `<div><span class="k">Discipline</span><span class="v">${f.forecast.discipline}</span></div>` +
-    `<div><span class="k">Gates</span><span class="v">${f.forecast.gates}</span></div>` +
-    `<div><span class="k">Visibility</span><span class="v">${f.forecast.visibility}</span></div>` +
-    `<div><span class="k">Ceiling</span><span class="v">${f.ceilingFt.toLocaleString()} ft</span></div>`;
-}
-
-oracleRoll.addEventListener("click", () => {
-  const f = rollFortune(state.jumps);
-  state.fortune = f;
-  renderFortune(f);
+  closeDelete();
 });
 
-oracleCopy.addEventListener("click", async () => {
-  if (!state.fortune) return;
-  try {
-    await navigator.clipboard.writeText(state.fortune.mantra);
-    flash("Mantra copied.");
-  } catch {
-    flash("Couldn't copy — try again.");
+deleteCancelBtn.addEventListener("click", closeDelete);
+deleteModal.addEventListener("click", (e) => { if (e.target === deleteModal) closeDelete(); });
+deleteModal.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeDelete();
+  if (e.key === "Enter") { e.preventDefault(); deleteConfirmBtn.click(); }
+});
+
+// Bulk log modal
+const bulkModal = byId("bulk-modal");
+const bulkGrid = byId("bulk-grid");
+const DISC_OPTIONS = `<option value="belly">Belly</option><option value="freefly">Freefly</option><option value="swoop">Swoop</option><option value="wingsuit">Wingsuit</option><option value="tracking">Tracking</option><option value="hop-pop">Hop &amp; Pop</option><option value="student">Student</option><option value="coach">Coach</option><option value="aff">AFF Instr.</option><option value="tandem">Tandem</option>`;
+
+const today = new Date().toISOString().slice(0, 10);
+
+function addBulkRow(prev?: { date: string; disc: string; exit: string; deploy: string; dz: string }) {
+  const d = document.createElement("input");
+  d.type = "date"; d.value = prev?.date ?? today;
+  const disc = document.createElement("select");
+  disc.innerHTML = DISC_OPTIONS;
+  if (prev?.disc) disc.value = prev.disc;
+  const exit = document.createElement("input");
+  exit.type = "number"; exit.value = prev?.exit ?? "13500"; exit.min = "2000"; exit.max = "30000"; exit.step = "100";
+  const deploy = document.createElement("input");
+  deploy.type = "number"; deploy.value = prev?.deploy ?? "4500"; deploy.min = "1800"; deploy.max = "14000"; deploy.step = "100";
+  const dzIn = document.createElement("input");
+  dzIn.type = "text"; dzIn.value = prev?.dz ?? ""; dzIn.placeholder = "Skydive Carolina";
+  const notes = document.createElement("input");
+  notes.type = "text"; notes.placeholder = "optional";
+
+  // Enter on last field → new row carrying forward values
+  notes.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addBulkRow({ date: d.value, disc: disc.value, exit: exit.value, deploy: deploy.value, dz: dzIn.value });
+    }
+  });
+
+  bulkGrid.append(d, disc, exit, deploy, dzIn, notes);
+  d.focus();
+}
+
+byId("bulk-open").addEventListener("click", () => {
+  // Clear previous rows (keep headers)
+  while (bulkGrid.children.length > 6) bulkGrid.removeChild(bulkGrid.lastChild!);
+  addBulkRow();
+  bulkModal.hidden = false;
+});
+
+function closeBulk() { bulkModal.hidden = true; }
+
+byId("bulk-add-row").addEventListener("click", () => {
+  const inputs = bulkGrid.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select");
+  const len = inputs.length;
+  if (len >= 6) {
+    const base = len - 6;
+    addBulkRow({
+      date: (inputs[base] as HTMLInputElement).value,
+      disc: (inputs[base + 1] as HTMLSelectElement).value,
+      exit: (inputs[base + 2] as HTMLInputElement).value,
+      deploy: (inputs[base + 3] as HTMLInputElement).value,
+      dz: (inputs[base + 4] as HTMLInputElement).value,
+    });
+  } else {
+    addBulkRow();
   }
+});
+
+byId("bulk-cancel").addEventListener("click", closeBulk);
+bulkModal.addEventListener("click", (e) => { if (e.target === bulkModal) closeBulk(); });
+bulkModal.addEventListener("keydown", (e) => { if (e.key === "Escape") closeBulk(); });
+
+byId("bulk-save").addEventListener("click", () => {
+  const inputs = bulkGrid.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select");
+  const cols = 6;
+  const rows = Math.floor(inputs.length / cols);
+  let added = 0;
+  for (let r = 0; r < rows; r++) {
+    const base = r * cols;
+    const date = (inputs[base] as HTMLInputElement).value;
+    const discipline = (inputs[base + 1] as HTMLSelectElement).value as Discipline;
+    const exitAlt = Number((inputs[base + 2] as HTMLInputElement).value);
+    const deployAlt = Number((inputs[base + 3] as HTMLInputElement).value);
+    const dropzone = (inputs[base + 4] as HTMLInputElement).value.trim();
+    const noteVal = (inputs[base + 5] as HTMLInputElement).value.trim();
+    if (!date || !dropzone) continue;
+    state.jumps.push({
+      id: uid(),
+      date,
+      discipline,
+      exitAltitude: exitAlt,
+      deploymentAltitude: deployAlt,
+      dropzone,
+      notes: noteVal || undefined,
+    });
+    added++;
+  }
+  if (added === 0) { flash("No valid rows to save."); return; }
+  state.jumps.sort((a, b) => a.date.localeCompare(b.date));
+  saveJumps(state.jumps);
+  renderList();
+  drawTree();
+  closeBulk();
+  flash(`Planted ${added} leaf${added === 1 ? "" : "s"}.`);
 });
 
 // Lightweight toast
@@ -209,12 +398,9 @@ function flash(msg: string) {
 }
 
 // Initial paint
+(jumpForm.elements.namedItem("date") as HTMLInputElement).value = new Date().toISOString().slice(0, 10);
 renderList();
 drawTree();
-// Pre-roll a fortune so the card has content on first visit.
-const initial = rollFortune(state.jumps);
-state.fortune = initial;
-renderFortune(initial);
 
 // Re-layout on resize (SVG is responsive, but tooltip position depends on it).
 window.addEventListener("resize", () => {

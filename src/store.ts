@@ -1,7 +1,14 @@
 import type { Jump } from "./types.ts";
-import { sampleJumps } from "./seed.ts";
+import { sampleJumps, scenarioById, type ScenarioId } from "./seed.ts";
+import { uid } from "./util.ts";
 
 const KEY = "shadetree:v2:jumps";
+
+/** Ensure every jump has an id (backfill seed/imported data). */
+function ensureIds(jumps: Jump[]): Jump[] {
+  for (const j of jumps) { if (!j.id) j.id = uid(); }
+  return jumps;
+}
 
 export function loadJumps(): Jump[] {
   try {
@@ -9,7 +16,7 @@ export function loadJumps(): Jump[] {
     if (!raw) return seedAndPersist();
     const parsed = JSON.parse(raw) as Jump[];
     if (!Array.isArray(parsed)) return seedAndPersist();
-    return parsed;
+    return ensureIds(parsed);
   } catch {
     return seedAndPersist();
   }
@@ -20,13 +27,19 @@ export function saveJumps(jumps: Jump[]): void {
 }
 
 export function resetToSeed(): Jump[] {
-  const s = sampleJumps();
+  const s = ensureIds(sampleJumps());
+  saveJumps(s);
+  return s;
+}
+
+export function loadScenario(id: ScenarioId): Jump[] {
+  const s = ensureIds(scenarioById(id).generate());
   saveJumps(s);
   return s;
 }
 
 function seedAndPersist(): Jump[] {
-  const s = sampleJumps();
+  const s = ensureIds(sampleJumps());
   saveJumps(s);
   return s;
 }

@@ -1,126 +1,58 @@
 import type { Discipline, Jump } from "./types.ts";
 import { mulberry32 } from "./util.ts";
 
-// Dropzones weighted by career phase — home DZ dominates early, travel grows later.
-const HOME_DZ = "Skydive Carolina";
-const REGIONAL_DZ = [
-  "Skydive Paraclete XP",
-  "Raeford Drop Zone",
-  "Skydive Orange",
-];
-const TRAVEL_DZ = [
-  "Skydive Deland",
-  "Skydive Perris",
-  "Skydive Arizona",
-  "Skydive Elsinore",
-  "Skydive Chicago",
-  "Skydive Sebastian",
-  "Empuriabrava",
-  "Dubai DZ",
-  "Skydive Spaceland Houston",
-];
+/* ── Scenario registry ─────────────────────────────────────────────── */
 
-interface Phase {
-  name: string;
-  months: number;
-  baseJumpsPerMonth: number;
-  // Discipline weights (probabilities sum implicitly; renormalized below).
-  mix: Partial<Record<Discipline, number>>;
-  // Chance (0..1) of a non-home DZ per jump.
-  travelBias: number;
+export type ScenarioId = "beginner" | "intermediate" | "pro-swooper";
+
+export interface Scenario {
+  id: ScenarioId;
+  label: string;
+  description: string;
+  generate: () => Jump[];
 }
 
-// 17-year career progression — lightly fictionalized, plausibly pro.
-const PHASES: Phase[] = [
+export const SCENARIOS: Scenario[] = [
   {
-    name: "student",
-    months: 4,
-    baseJumpsPerMonth: 12,
-    mix: { student: 0.88, "hop-pop": 0.12 },
-    travelBias: 0,
+    id: "beginner",
+    label: "Fresh A-License",
+    description: "1–2 seasons, ~80 jumps. Student progression into belly and first freefly.",
+    generate: beginnerJumps,
   },
   {
-    name: "licensed-novice",
-    months: 14,
-    baseJumpsPerMonth: 20,
-    mix: {
-      belly: 0.52,
-      freefly: 0.18,
-      tracking: 0.1,
-      "hop-pop": 0.12,
-      student: 0.08,
-    },
-    travelBias: 0.05,
+    id: "intermediate",
+    label: "Freefly Focus",
+    description: "~400 jumps over 3 years. Belly base with a growing freefly habit.",
+    generate: intermediateJumps,
   },
   {
-    name: "coach-track",
-    months: 24,
-    baseJumpsPerMonth: 26,
-    mix: {
-      belly: 0.3,
-      coach: 0.24,
-      freefly: 0.22,
-      tracking: 0.12,
-      "hop-pop": 0.08,
-      student: 0.04,
-    },
-    travelBias: 0.1,
-  },
-  {
-    name: "aff-tandem-rating",
-    months: 36,
-    baseJumpsPerMonth: 38,
-    mix: {
-      aff: 0.24,
-      tandem: 0.22,
-      coach: 0.12,
-      belly: 0.14,
-      freefly: 0.14,
-      tracking: 0.08,
-      "hop-pop": 0.06,
-    },
-    travelBias: 0.18,
-  },
-  {
-    name: "peak-pro",
-    months: 72,
-    baseJumpsPerMonth: 46,
-    mix: {
-      tandem: 0.2,
-      aff: 0.16,
-      freefly: 0.16,
-      coach: 0.1,
-      swoop: 0.1,
-      wingsuit: 0.08,
-      tracking: 0.1,
-      belly: 0.06,
-      "hop-pop": 0.04,
-    },
-    travelBias: 0.35,
-  },
-  {
-    name: "specialist-mentor",
-    months: 54,
-    baseJumpsPerMonth: 34,
-    mix: {
-      swoop: 0.18,
-      wingsuit: 0.16,
-      coach: 0.16,
-      tandem: 0.14,
-      aff: 0.1,
-      freefly: 0.1,
-      tracking: 0.08,
-      belly: 0.05,
-      "hop-pop": 0.03,
-    },
-    travelBias: 0.4,
+    id: "pro-swooper",
+    label: "Pro Swooper",
+    description: "2 000+ jumps over 8 years. Competition canopy pilot — swoop is life.",
+    generate: proSwooperJumps,
   },
 ];
 
-// Season modifier — US northern hemisphere, summer peaks, winter slows.
+/** Default export kept for backward compat (scripts, store fallback). */
+export function sampleJumps(): Jump[] {
+  return proSwooperJumps();
+}
+
+export function scenarioById(id: ScenarioId): Scenario {
+  return SCENARIOS.find((s) => s.id === id)!;
+}
+
+/* ── Shared infrastructure ─────────────────────────────────────────── */
+
+const HOME_DZ = "Skydive Carolina";
+const REGIONAL: string[] = ["Skydive Paraclete XP", "Skydive Orange", "Raeford Drop Zone"];
+const TRAVEL: string[] = [
+  "Skydive Deland", "Skydive Perris", "Skydive Arizona", "Skydive Elsinore",
+  "Skydive Chicago", "Skydive Sebastian", "Skydive Spaceland Houston",
+];
+
 const SEASON_MULT = [0.5, 0.55, 0.75, 1.0, 1.15, 1.25, 1.3, 1.25, 1.1, 0.95, 0.7, 0.5];
 
-// Discipline altitude profiles (exit, deployment) in feet.
 const ALT: Record<Discipline, { exit: [number, number]; deploy: [number, number] }> = {
   student:   { exit: [13000, 13500], deploy: [5500, 5800] },
   belly:     { exit: [13500, 14000], deploy: [4500, 5000] },
@@ -134,179 +66,175 @@ const ALT: Record<Discipline, { exit: [number, number]; deploy: [number, number]
   tandem:    { exit: [13000, 14000], deploy: [5200, 5800] },
 };
 
-// Milestone notes by jump number — these get attached if the jump aligns.
-const MILESTONES: Array<{ at: number; note: string; disc?: Discipline }> = [
-  { at: 1, note: "Tandem one. The first door opens; nothing since has looked the same.", disc: "tandem" },
-  { at: 6, note: "AFF Cat A solo exit. Heart in my throat, arch in my spine.", disc: "student" },
-  { at: 25, note: "A-license check dive. Licensed to be dumb on purpose.", disc: "belly" },
-  { at: 100, note: "Hundredth jump. Beer line at the packing mat. Paid gladly." },
-  { at: 200, note: "Coach rating checkout. First time I heard myself debrief calmly.", disc: "coach" },
-  { at: 500, note: "Five hundred. Wings felt re-sewn on.", disc: "freefly" },
-  { at: 750, note: "AFF Instructor exam passed. Now I owe a lot of students a lot of careful seconds.", disc: "aff" },
-  { at: 1000, note: "One thousand. Watched the sun come up over the hangar before the first lift." },
-  { at: 1250, note: "Tandem Instructor rating. The back harness is its own conversation.", disc: "tandem" },
-  { at: 1500, note: "First wingsuit flight with a coach. The legs. The LEGS.", disc: "wingsuit" },
-  { at: 2000, note: "Swoop course graduation — 270° through the gates, clean.", disc: "swoop" },
-  { at: 2500, note: "First paid demo weekend. Smoke, crowd, holding the bearing." },
-  { at: 3000, note: "Three thousand. The numbers stopped feeling like numbers." },
-  { at: 3500, note: "Wingsuit flock over Elsinore. Eighteen of us; no one lost the formation.", disc: "wingsuit" },
-  { at: 4000, note: "Competed at the Carolina Classic — PPC speed round. The line forgave me twice.", disc: "swoop" },
-  { at: 5000, note: "Five thousand. Bought the gear I wanted at twenty. Humility intact." },
-  { at: 6000, note: "Took a first-time tandem who refused to stop grinning. Remembered why I started.", disc: "tandem" },
-  { at: 7000, note: "Seven thousand. Coached a student who was better in week two than I was in year two.", disc: "coach" },
-];
+interface Phase {
+  months: number;
+  jumpsPerMonth: number;
+  mix: Partial<Record<Discipline, number>>;
+  travelBias: number;
+}
 
-const FLAVOR_NOTES = [
-  "sunset load, honeysuckle on the taxiway",
-  "glass-off air, nobody wanted to go home",
-  "frost on the turbine at first lift",
-  "low ceiling, hop-and-pop sortie",
-  "beachfront winds — grateful for a long pattern",
-  "desert thermals lifting the whole pattern",
-  "ride up, nobody spoke, everyone smiled",
-  "first load of the season, trunk of the car still had last October's leaves",
-  "new canopy, old jumper — cautious first flight",
-  "recovery arc felt right, landing line didn't lie",
-  "mentoring a rookie all day, drank the chai the manifest girl made",
-  "thunderstorm on the west edge, we called it after eight",
-  "holiday demo, flag jump into a little-league field",
-  "funnel on the hill; no contact, everyone laughed",
-];
+/* ── Generator engine ──────────────────────────────────────────────── */
 
-export function sampleJumps(): Jump[] {
-  const rand = mulberry32(0xc0_0b_5e_ed); // "cool seed"
-  const jumps: Jump[] = [];
-
+function generate(
+  seed: number,
+  yearsBack: number,
+  startMonth: number,
+  phases: Phase[],
+  milestones: Array<{ at: number; note: string; disc?: Discipline }>,
+): Jump[] {
+  const rand = mulberry32(seed);
+  const jumps: Array<Omit<Jump, "id">> = [];
   const today = new Date();
-  // Start the career 17 years and a little ago, in May (good month to start).
-  const careerStart = new Date(today.getFullYear() - 17, 3, 14); // Apr 14
+  const start = new Date(today.getFullYear() - yearsBack, startMonth, 14);
+  let cursor = new Date(start);
+  const cutoff = new Date(today.getTime() - 7 * 86_400_000);
 
-  let cursor = new Date(careerStart);
-  const cutoff = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); // stop a week ago
-  let idCounter = 0;
-
-  for (let p = 0; p < PHASES.length; p++) {
-    const phase = PHASES[p]!;
-    const disciplines = normalizeMix(phase.mix);
-
+  for (const phase of phases) {
+    const mix = normalize(phase.mix);
     for (let m = 0; m < phase.months; m++) {
       if (cursor > cutoff) break;
+      const mo = cursor.getMonth();
+      const yr = cursor.getFullYear();
+      const count = Math.round(phase.jumpsPerMonth * SEASON_MULT[mo]! * (0.8 + rand() * 0.4));
+      const days = new Date(yr, mo + 1, 0).getDate();
 
-      const monthIdx = cursor.getMonth();
-      const yearN = cursor.getFullYear();
-      const seasonMult = SEASON_MULT[monthIdx]!;
-      const jitter = 0.8 + rand() * 0.4;
-      const targetCount = Math.round(
-        phase.baseJumpsPerMonth * seasonMult * jitter,
-      );
-
-      const daysInMonth = new Date(yearN, monthIdx + 1, 0).getDate();
-
-      for (let k = 0; k < targetCount; k++) {
-        const day = 1 + Math.floor(rand() * daysInMonth);
-        const date = new Date(yearN, monthIdx, day);
+      for (let k = 0; k < count; k++) {
+        const date = new Date(yr, mo, 1 + Math.floor(rand() * days));
         if (date > cutoff) break;
-
-        const discipline = pickWeighted(disciplines, rand);
-        const profile = ALT[discipline];
-        const exit = randInt(profile.exit[0], profile.exit[1], rand);
-        // Deployment capped below exit with a floor.
-        const deploy = Math.min(
-          exit - 400,
-          randInt(profile.deploy[0], profile.deploy[1], rand),
-        );
-
-        const dz = pickDropzone(phase.travelBias, rand);
-
-        const jumpNumber = jumps.length + 1;
-        const milestone = MILESTONES.find(
-          (ms) => ms.at === jumpNumber && (!ms.disc || ms.disc === discipline),
-        );
-        const notes = milestone
-          ? milestone.note
-          : rand() < 0.04
-            ? FLAVOR_NOTES[Math.floor(rand() * FLAVOR_NOTES.length)]!
-            : undefined;
-
+        const disc = pick(mix, rand);
+        const a = ALT[disc];
+        const exit = rInt(a.exit[0], a.exit[1], rand);
+        const deploy = Math.min(exit - 400, rInt(a.deploy[0], a.deploy[1], rand));
+        const dz = pickDz(phase.travelBias, rand);
+        const n = jumps.length + 1;
+        const ms = milestones.find((x) => x.at === n && (!x.disc || x.disc === disc));
         jumps.push({
-          id: `j${String(idCounter++).padStart(6, "0")}`,
-          date: toIso(date),
-          discipline,
+          date: iso(date),
+          discipline: disc,
           exitAltitude: exit,
           deploymentAltitude: deploy,
           dropzone: dz,
-          notes,
+          notes: ms ? ms.note : undefined,
         });
       }
-
-      cursor = new Date(yearN, monthIdx + 1, 1);
+      cursor = new Date(yr, mo + 1, 1);
     }
   }
 
-  // Any milestones that didn't land on the exact jump number get stapled onto
-  // the nearest un-noted jump so the important stories still show up.
-  for (const ms of MILESTONES) {
+  // Attach any milestones that didn't land exactly.
+  for (const ms of milestones) {
     const j = jumps[ms.at - 1];
     if (!j || j.notes) continue;
     if (ms.disc && j.discipline !== ms.disc) {
-      // Look within ±10 jumps for a matching-discipline landing spot.
       for (let d = 1; d <= 10; d++) {
-        const a = jumps[ms.at - 1 + d];
-        const b = jumps[ms.at - 1 - d];
-        if (a && !a.notes && (!ms.disc || a.discipline === ms.disc)) {
-          a.notes = ms.note;
-          break;
+        for (const c of [jumps[ms.at - 1 + d], jumps[ms.at - 1 - d]]) {
+          if (c && !c.notes && (!ms.disc || c.discipline === ms.disc)) {
+            c.notes = ms.note;
+            break;
+          }
         }
-        if (b && !b.notes && (!ms.disc || b.discipline === ms.disc)) {
-          b.notes = ms.note;
-          break;
-        }
+        if (jumps.some((x) => x.notes === ms.note)) break;
       }
     } else {
       j.notes = ms.note;
     }
   }
 
-  return jumps.sort((a, b) => a.date.localeCompare(b.date));
+  return jumps.sort((a, b) => a.date.localeCompare(b.date)) as Jump[];
 }
 
-function normalizeMix(
-  mix: Partial<Record<Discipline, number>>,
-): Array<{ d: Discipline; w: number }> {
+/* ── Scenario 1 — Beginner (1–2 seasons, ~80 jumps) ───────────────── */
+
+function beginnerJumps(): Jump[] {
+  return generate(0xbe_91_00, 1, 4, [
+    // AFF student: 27–35 jumps across ~3 months
+    { months: 3, jumpsPerMonth: 11, mix: { student: 0.92, "hop-pop": 0.08 }, travelBias: 0 },
+    // Fresh A-license: belly focus, first freefly attempts
+    { months: 10, jumpsPerMonth: 5, mix: { belly: 0.62, freefly: 0.12, tracking: 0.08, "hop-pop": 0.18 }, travelBias: 0.03 },
+  ], [
+    { at: 1, note: "AFF Cat A. Arch, breathe, check altitude. Repeat.", disc: "student" },
+    { at: 15, note: "Solo clear-and-pull. Starting to feel like a skydiver.", disc: "student" },
+    { at: 26, note: "A-license check dive! Beer owed.", disc: "belly" },
+    { at: 50, note: "First 4-way belly. Docked on the second try.", disc: "belly" },
+  ]);
+}
+
+/* ── Scenario 2 — Intermediate (~400 jumps, freefly focus) ─────────── */
+
+function intermediateJumps(): Jump[] {
+  return generate(0xff_10_20, 3, 5, [
+    // Student phase: ~30 jumps
+    { months: 3, jumpsPerMonth: 11, mix: { student: 0.9, "hop-pop": 0.1 }, travelBias: 0 },
+    // Novice belly year
+    { months: 10, jumpsPerMonth: 10, mix: { belly: 0.6, freefly: 0.15, tracking: 0.1, "hop-pop": 0.15 }, travelBias: 0.05 },
+    // Freefly focus ramps up
+    { months: 12, jumpsPerMonth: 12, mix: { freefly: 0.42, belly: 0.28, tracking: 0.14, "hop-pop": 0.1, swoop: 0.06 }, travelBias: 0.1 },
+    // Deepening freefly, first coaching jumps
+    { months: 12, jumpsPerMonth: 14, mix: { freefly: 0.48, belly: 0.18, tracking: 0.12, coach: 0.08, "hop-pop": 0.08, swoop: 0.06 }, travelBias: 0.15 },
+  ], [
+    { at: 1, note: "AFF Cat A. Sensory overload in the best way.", disc: "student" },
+    { at: 28, note: "A-license! Bought a case of beer for the DZ.", disc: "belly" },
+    { at: 100, note: "Triple digits. First sit-fly attempt — ate it, grinning.", disc: "freefly" },
+    { at: 200, note: "200. Sit-fly is clicking. Head-down next.", disc: "freefly" },
+    { at: 300, note: "First head-down exit that stayed stable the whole jump.", disc: "freefly" },
+  ]);
+}
+
+/* ── Scenario 3 — Pro Swooper (2000+ jumps, 8 years) ──────────────── */
+
+function proSwooperJumps(): Jump[] {
+  return generate(0xc0_0b_5e_ed, 8, 3, [
+    // Student: ~35 jumps
+    { months: 3, jumpsPerMonth: 12, mix: { student: 0.9, "hop-pop": 0.1 }, travelBias: 0 },
+    // Novice: belly + first freefly
+    { months: 10, jumpsPerMonth: 16, mix: { belly: 0.55, freefly: 0.18, tracking: 0.1, "hop-pop": 0.17 }, travelBias: 0.05 },
+    // Building canopy skills — hop-pops for pattern work, swoop practice begins
+    { months: 12, jumpsPerMonth: 22, mix: { belly: 0.22, freefly: 0.18, swoop: 0.2, "hop-pop": 0.2, tracking: 0.1, coach: 0.1 }, travelBias: 0.1 },
+    // Swoop focus intensifies — canopy courses, competition entry
+    { months: 18, jumpsPerMonth: 28, mix: { swoop: 0.4, "hop-pop": 0.18, belly: 0.12, freefly: 0.12, coach: 0.08, tracking: 0.06, aff: 0.04 }, travelBias: 0.2 },
+    // Competition swooper — swoop dominates, teaching on the side
+    { months: 24, jumpsPerMonth: 32, mix: { swoop: 0.52, "hop-pop": 0.14, coach: 0.1, aff: 0.08, freefly: 0.08, belly: 0.05, tracking: 0.03 }, travelBias: 0.35 },
+    // Peak pro — swoop competition circuit, occasional fun jumps
+    { months: 30, jumpsPerMonth: 28, mix: { swoop: 0.58, "hop-pop": 0.12, coach: 0.08, tandem: 0.06, aff: 0.06, freefly: 0.05, belly: 0.03, tracking: 0.02 }, travelBias: 0.4 },
+  ], [
+    { at: 1, note: "AFF Cat A. The door opened and everything changed.", disc: "student" },
+    { at: 30, note: "A-license check dive. Bought the beer, earned the card.", disc: "belly" },
+    { at: 100, note: "100 jumps. Started noticing the canopy ride more than the freefall." },
+    { at: 200, note: "First canopy course with Flight-1. 90° front-riser turn — felt the swoop.", disc: "swoop" },
+    { at: 500, note: "500. Downsized to a Valkyrie 84. The gates are calling.", disc: "swoop" },
+    { at: 750, note: "First competition — local CP meet. Placed mid-pack. Hooked.", disc: "swoop" },
+    { at: 1000, note: "One thousand. 270° through the gates, clean entry, long carve.", disc: "swoop" },
+    { at: 1500, note: "Podium finish at a regional. Speed round personal best.", disc: "swoop" },
+    { at: 2000, note: "Two thousand. The pond is home. 450° on a good day.", disc: "swoop" },
+  ]);
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────── */
+
+function normalize(mix: Partial<Record<Discipline, number>>): Array<{ d: Discipline; w: number }> {
   const entries = Object.entries(mix) as Array<[Discipline, number]>;
   const total = entries.reduce((s, [, w]) => s + w, 0);
   return entries.map(([d, w]) => ({ d, w: w / total }));
 }
 
-function pickWeighted(
-  options: Array<{ d: Discipline; w: number }>,
-  rand: () => number,
-): Discipline {
+function pick(opts: Array<{ d: Discipline; w: number }>, rand: () => number): Discipline {
   const r = rand();
   let acc = 0;
-  for (const o of options) {
-    acc += o.w;
-    if (r <= acc) return o.d;
-  }
-  return options[options.length - 1]!.d;
+  for (const o of opts) { acc += o.w; if (r <= acc) return o.d; }
+  return opts[opts.length - 1]!.d;
 }
 
-function pickDropzone(travelBias: number, rand: () => number): string {
-  const roll = rand();
-  if (roll < 1 - travelBias) return HOME_DZ;
-  if (roll < 1 - travelBias / 3) {
-    return REGIONAL_DZ[Math.floor(rand() * REGIONAL_DZ.length)]!;
-  }
-  return TRAVEL_DZ[Math.floor(rand() * TRAVEL_DZ.length)]!;
+function pickDz(travelBias: number, rand: () => number): string {
+  const r = rand();
+  if (r < 1 - travelBias) return HOME_DZ;
+  if (r < 1 - travelBias / 3) return REGIONAL[Math.floor(rand() * REGIONAL.length)]!;
+  return TRAVEL[Math.floor(rand() * TRAVEL.length)]!;
 }
 
-function randInt(lo: number, hi: number, rand: () => number): number {
+function rInt(lo: number, hi: number, rand: () => number): number {
   return Math.round(lo + rand() * (hi - lo));
 }
 
-function toIso(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

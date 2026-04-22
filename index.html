@@ -21,8 +21,8 @@
         </div>
         <nav class="tabs" role="tablist">
           <button role="tab" data-tab="tree" class="tab active">Canopy</button>
+          <button role="tab" data-tab="highlights" class="tab">Highlights</button>
           <button role="tab" data-tab="logbook" class="tab">Logbook</button>
-          <button role="tab" data-tab="oracle" class="tab">Wind Oracle</button>
         </nav>
       </header>
 
@@ -38,6 +38,10 @@
             <div class="stat"><span id="stat-disciplines">0</span><small>disciplines</small></div>
             <div class="stat"><span id="stat-altitude">0</span><small>miles in freefall</small></div>
           </div>
+        </section>
+
+        <section id="panel-highlights" class="panel" role="tabpanel">
+          <div id="highlights" class="highlights"></div>
         </section>
 
         <section id="panel-logbook" class="panel" role="tabpanel">
@@ -81,47 +85,38 @@
               </label>
               <div class="form-actions">
                 <button type="submit" class="primary">Plant leaf</button>
-                <button type="button" id="reset-seed" class="ghost">Reset to sample tree</button>
+                <button type="button" id="bulk-open" class="ghost">Bulk log</button>
               </div>
             </form>
 
             <div class="jump-list-wrap">
               <div class="list-header">
                 <h2>Jumps</h2>
-                <input
-                  type="search"
-                  id="jump-search"
-                  placeholder="filter jumps…"
-                  aria-label="Filter jumps"
-                />
+                <div class="list-actions">
+                  <button type="button" id="import-jumps" class="ghost small" title="Replace logbook from JSON">Import</button>
+                  <button type="button" id="merge-jumps" class="ghost small" title="Add new jumps from JSON">Merge</button>
+                  <button type="button" id="format-info" class="ghost small" title="Show expected file format">?</button>
+                  <button type="button" id="export-jumps" class="ghost small" title="Export logbook to JSON">Export</button>
+                  <input
+                    type="search"
+                    id="jump-search"
+                    placeholder="filter jumps…"
+                    aria-label="Filter jumps"
+                  />
+                </div>
               </div>
               <ol id="jump-list" class="jump-list"></ol>
+            </div>
+
+            <div class="scenario-picker">
+              <h3>Load demo scenario</h3>
+              <p class="scenario-hint">Replaces your current logbook with sample data.</p>
+              <div class="scenario-options" id="scenario-options"></div>
             </div>
           </div>
         </section>
 
-        <section id="panel-oracle" class="panel" role="tabpanel">
-          <div class="oracle">
-            <div class="oracle-card" id="oracle-card">
-              <div class="oracle-header">
-                <h2>The Wind Oracle</h2>
-                <p class="oracle-sub">a fortune drawn from altitude, season, and your history</p>
-              </div>
-              <div class="oracle-dial" aria-hidden="true">
-                <div class="dial" id="oracle-dial"></div>
-                <div class="dial-center"><span id="oracle-heading">—</span></div>
-              </div>
-              <blockquote id="oracle-quote" class="oracle-quote">
-                Tap the compass to listen.
-              </blockquote>
-              <div class="oracle-forecast" id="oracle-forecast"></div>
-              <div class="oracle-actions">
-                <button id="oracle-roll" class="primary">Consult the winds</button>
-                <button id="oracle-copy" class="ghost">Copy mantra</button>
-              </div>
-            </div>
-          </div>
-        </section>
+
       </main>
 
       <footer class="footer">
@@ -129,6 +124,38 @@
         <span class="footer-dot">·</span>
         <span>data stays on your device</span>
       </footer>
+    <div id="delete-modal" class="modal-overlay" hidden>
+      <div class="modal modal-sm" role="alertdialog" aria-label="Confirm delete">
+        <p>Delete this jump?</p>
+        <div class="modal-actions">
+          <button id="delete-confirm" class="primary danger">Delete</button>
+          <button id="delete-cancel" class="ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bulk-modal" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-label="Bulk jump log">
+        <div class="modal-header">
+          <h2>Bulk jump log</h2>
+          <span class="modal-hint">Tab between fields · Enter adds a row · Escape closes</span>
+        </div>
+        <div class="bulk-grid" id="bulk-grid">
+          <div class="bulk-head">Date</div>
+          <div class="bulk-head">Discipline</div>
+          <div class="bulk-head">Exit ft</div>
+          <div class="bulk-head">Deploy ft</div>
+          <div class="bulk-head">Dropzone</div>
+          <div class="bulk-head">Notes</div>
+        </div>
+        <div class="modal-actions">
+          <button id="bulk-add-row" class="ghost" title="Add another row">+</button>
+          <button id="bulk-save" class="primary">Save all</button>
+          <button id="bulk-cancel" class="ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -34,6 +34,7 @@ export interface LeafHover {
   jump: Jump;
   x: number;
   y: number;
+  milestone?: string;
 }
 
 export function renderTree(
@@ -76,9 +77,11 @@ export function renderTree(
   );
   svg.append(defs);
 
-  // Sky / backdrop.
+  // Sky / backdrop — uses id so pan-zoom can resize after layout.
+  const sky = rect(0, 0, W, H, "url(#skyGrad)");
+  sky.id = "sky-bg";
   svg.append(
-    rect(0, 0, W, H, "url(#skyGrad)"),
+    sky,
     // Sun
     circle(W - 140, 120, 46, "rgba(255,239,200,0.9)"),
     circle(W - 140, 120, 68, "rgba(255,239,200,0.35)"),
@@ -107,6 +110,29 @@ export function renderTree(
   const yearCount = years.size;
   const jumpById = new Map<string, Jump>();
   for (const j of sorted) jumpById.set(j.id, j);
+
+  // Detect milestone jumps.
+  const milestones = new Map<string, string>(); // jump id → reason
+  const NUMBER_MILESTONES = [100, 200, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
+  const seenDisc = new Set<string>();
+  let lastStudentId: string | undefined;
+  for (let i = 0; i < sorted.length; i++) {
+    const j = sorted[i]!;
+    const num = i + 1;
+    if (NUMBER_MILESTONES.includes(num)) {
+      milestones.set(j.id, `Jump #${num.toLocaleString()}`);
+    }
+    if (!seenDisc.has(j.discipline)) {
+      seenDisc.add(j.discipline);
+      if (j.discipline !== "student" && seenDisc.size > 1) {
+        milestones.set(j.id, `First ${j.discipline} jump`);
+      }
+    }
+    if (j.discipline === "student") lastStudentId = j.id;
+  }
+  if (lastStudentId && !milestones.has(lastStudentId)) {
+    milestones.set(lastStudentId, "Last student jump");
+  }
 
   // Trunk — height scales with seasons.
   const trunkHeight = Math.min(300, 110 + yearCount * 14);
@@ -251,6 +277,14 @@ export function renderTree(
         leaf.setAttribute("opacity", String(leafOpacity));
       }
       leaf.classList.add("leaf");
+      const msReason = milestones.get(jump.id);
+      if (msReason) {
+        leaf.classList.add("milestone");
+        leaf.setAttribute("r", String(r * 1.8));
+        leaf.setAttribute("stroke", "#d4a017");
+        leaf.setAttribute("stroke-width", "2");
+        leaf.dataset.milestone = msReason;
+      }
       leaf.dataset.jumpId = jump.id;
       leaf.dataset.lx = String(lx);
       leaf.dataset.ly = String(ly);
@@ -273,6 +307,7 @@ export function renderTree(
       jump: j,
       x: Number(target.dataset.lx),
       y: Number(target.dataset.ly),
+      milestone: target.dataset.milestone,
     });
   };
   const handleOut = (ev: Event) => {
