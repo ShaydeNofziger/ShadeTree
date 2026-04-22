@@ -1,5 +1,9 @@
 # ShadeTree
 
+[![Deploy to GitHub Pages](https://github.com/ShaydeNofziger/ShadeTree/actions/workflows/pages.yml/badge.svg)](https://github.com/ShaydeNofziger/ShadeTree/actions/workflows/pages.yml)
+
+**[Live site →](https://shaydenofziger.github.io/ShadeTree)**
+
 > Your jumps, growing.
 >
 > A cozy, local-first skydiver's companion that renders your logbook as a
