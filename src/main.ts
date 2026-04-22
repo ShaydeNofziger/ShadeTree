@@ -553,8 +553,8 @@ function addBulkRow(prev?: { date: string; disc: string; exit: string; deploy: s
 byId("bulk-open").addEventListener("click", () => {
   // Clear previous rows (keep headers)
   while (bulkGrid.children.length > 6) bulkGrid.removeChild(bulkGrid.lastChild!);
-  addBulkRow();
   bulkModal.hidden = false;
+  addBulkRow();
 });
 
 function closeBulk() { bulkModal.hidden = true; }
