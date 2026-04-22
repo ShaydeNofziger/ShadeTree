@@ -21,18 +21,19 @@ See `CLAUDE.md` for the full project brief. Short version for agents:
 
 ## Where things live
 
-| Concern                | File                  |
-| ---------------------- | --------------------- |
-| Entrypoint / wiring    | `src/main.ts`         |
-| Tree SVG renderer      | `src/tree.ts`         |
-| Logbook UI             | `src/logbook.ts`      |
-| Pan / zoom             | `src/panzoom.ts`      |
-| Storage + ID backfill  | `src/store.ts`        |
-| Demo scenario data     | `src/seed.ts`         |
-| Types                  | `src/types.ts`        |
-| PRNG / util            | `src/util.ts`         |
-| Styling                | `src/styles.css`      |
-| Page shell + tabs      | `index.html`          |
+| Concern                     | File              |
+| --------------------------- | ----------------- |
+| Entrypoint / wiring         | `src/main.ts`     |
+| Tree SVG renderer           | `src/tree.ts`     |
+| Logbook UI + pagination     | `src/logbook.ts`  |
+| Career highlights           | `src/highlights.ts` |
+| Pan / zoom / pinch-to-zoom  | `src/panzoom.ts`  |
+| Storage + ID backfill       | `src/store.ts`    |
+| Demo scenario data          | `src/seed.ts`     |
+| Types                       | `src/types.ts`    |
+| PRNG / util                 | `src/util.ts`     |
+| Styling                     | `src/styles.css`  |
+| Page shell + tabs + modals  | `index.html`      |
 
 ## Workflow
 
@@ -44,23 +45,38 @@ See `CLAUDE.md` for the full project brief. Short version for agents:
 
 ## Adding a discipline
 
-Five files need edits:
+Six files need edits:
 1. `src/types.ts` — add to `Discipline` union
 2. `src/tree.ts` — add to `DISCIPLINE_LABEL` and `DISCIPLINE_ORDER`
 3. `src/logbook.ts` — add to `DISC_BADGE`
-4. `src/styles.css` — add `--disc-<name>` color
-5. `index.html` — add `<option>` to the form select AND update `DISC_OPTIONS`
-   in `src/main.ts` (used by the bulk log modal)
+4. `src/highlights.ts` — add to `DISC_LABEL`
+5. `src/styles.css` — add `--disc-<name>` color variable and `.disc-<name>` class
+6. `index.html` — add `<option>` to the form select, the filter select, AND
+   update `DISC_OPTIONS` in `src/main.ts` (used by the bulk log modal)
 
 ## Seed scenarios
 
 Three generators in `src/seed.ts`:
-- **beginner** (~80 jumps): student → belly → first freefly
-- **intermediate** (~400 jumps): freefly focus with belly base
-- **pro-swooper** (2000+ jumps): competition canopy pilot
+- **beginner** (~80 jumps): tandem student → AFF student → belly → first freefly
+- **intermediate** (~400 jumps): tandem student → student → freefly focus with belly base
+- **pro-swooper** (2000+ jumps): competition canopy pilot with tandem-instructor work
 
 Student jumps always 27–45. Discipline mixes are career-realistic. The
 `sampleJumps()` default is pro-swooper (used by scripts and initial load).
+
+## UI features to be aware of
+
+- **Timeline scrubber** on the Canopy panel lets users rewind through their
+  career. `state.asOf` controls the cutoff date; `null` means show all.
+- **Structured filters** on the Logbook panel: date range, discipline select,
+  dropzone select (dynamically populated), plus freeform text search.
+- **Pagination** at 100 jumps per page in the logbook.
+- **Tools dropdown** (⚙) in the logbook header: export, import, merge,
+  format help, and clear-all (destructive, with confirmation).
+- **About modal** (?) on the Canopy panel explains leaf placement, size,
+  color, milestones, and trunk growth.
+- **Reset zoom** (⌂) on the Canopy panel resets pan/zoom to the fitted view.
+- **Pinch-to-zoom** on mobile via multi-pointer tracking in `panzoom.ts`.
 
 ## Aesthetic notes
 
