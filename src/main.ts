@@ -2,7 +2,7 @@ import "./styles.css";
 import { loadJumps, loadScenario, resetToSeed, saveJumps } from "./store.ts";
 import { SCENARIOS } from "./seed.ts";
 import { renderTree, type LeafHover } from "./tree.ts";
-import { renderJumpList } from "./logbook.ts";
+import { renderJumpList, type JumpFilters } from "./logbook.ts";
 import { renderHighlights } from "./highlights.ts";
 import {
   addDays,
@@ -16,7 +16,8 @@ import { initPanZoom } from "./panzoom.ts";
 
 interface State {
   jumps: Jump[];
-  filter: string;
+  filters: JumpFilters;
+  page: number;
   // Null means "show everything through the latest jump" (the default).
   // Otherwise the ISO date the scrubber is pinned to.
   asOf: string | null;
@@ -24,7 +25,8 @@ interface State {
 
 const state: State = {
   jumps: loadJumps(),
-  filter: "",
+  filters: { search: "", dateFrom: "", dateTo: "", discipline: "", dropzone: "" },
+  page: 1,
   asOf: null,
 };
 
@@ -37,6 +39,11 @@ const statAltitude = byId("stat-altitude");
 const jumpForm = document.getElementById("jump-form") as HTMLFormElement;
 const jumpList = document.getElementById("jump-list") as HTMLOListElement;
 const jumpSearch = document.getElementById("jump-search") as HTMLInputElement;
+const filterDateFrom = document.getElementById("filter-date-from") as HTMLInputElement;
+const filterDateTo = document.getElementById("filter-date-to") as HTMLInputElement;
+const filterDisc = document.getElementById("filter-discipline") as HTMLSelectElement;
+const filterDZ = document.getElementById("filter-dropzone") as HTMLSelectElement;
+const jumpPagination = document.getElementById("jump-pagination") as HTMLElement;
 const scenarioOptions = document.getElementById("scenario-options") as HTMLElement;
 const resetSeedBtn = document.getElementById("reset-seed");
 const timeline = document.getElementById("timeline") as HTMLElement;
@@ -194,7 +201,12 @@ timelineToday.addEventListener("click", () => {
 });
 
 function renderList() {
-  renderJumpList(jumpList, state.jumps, state.filter, deleteJump);
+  const info = renderJumpList(jumpList, jumpPagination, state.jumps, state.filters, state.page, deleteJump, (p) => {
+    state.page = p;
+    renderList();
+    jumpList.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  state.page = info.page;
 }
 
 function onLeafHover(h: LeafHover | null) {
@@ -261,6 +273,7 @@ jumpForm.addEventListener("submit", (ev) => {
     "13500";
   (jumpForm.elements.namedItem("deploymentAltitude") as HTMLInputElement).value =
     "4500";
+  refreshDropzoneFilter();
   renderList();
   refreshTimeline();
   drawTree();
@@ -276,6 +289,7 @@ for (const s of SCENARIOS) {
     if (!confirm(`Load "${s.label}" scenario? This replaces your current logbook.`)) return;
     state.jumps = loadScenario(s.id);
     state.asOf = null;
+    refreshDropzoneFilter();
     renderList();
     refreshTimeline();
     drawTree();
@@ -289,6 +303,7 @@ resetSeedBtn?.addEventListener("click", () => {
   if (!confirm("Reset your logbook to the sample tree? This clears your local jumps.")) return;
   state.jumps = resetToSeed();
   state.asOf = null;
+  refreshDropzoneFilter();
   renderList();
   refreshTimeline();
   drawTree();
@@ -296,9 +311,48 @@ resetSeedBtn?.addEventListener("click", () => {
 });
 
 jumpSearch.addEventListener("input", () => {
-  state.filter = jumpSearch.value;
+  state.filters.search = jumpSearch.value;
+  state.page = 1;
   renderList();
 });
+
+filterDateFrom.addEventListener("input", () => {
+  state.filters.dateFrom = filterDateFrom.value;
+  state.page = 1;
+  renderList();
+});
+
+filterDateTo.addEventListener("input", () => {
+  state.filters.dateTo = filterDateTo.value;
+  state.page = 1;
+  renderList();
+});
+
+filterDisc.addEventListener("change", () => {
+  state.filters.discipline = filterDisc.value;
+  state.page = 1;
+  renderList();
+});
+
+filterDZ.addEventListener("change", () => {
+  state.filters.dropzone = filterDZ.value;
+  state.page = 1;
+  renderList();
+});
+
+function refreshDropzoneFilter() {
+  const dzs = [...new Set(state.jumps.map((j) => j.dropzone))].sort();
+  const current = filterDZ.value;
+  filterDZ.innerHTML = '<option value="">All dropzones</option>';
+  for (const dz of dzs) {
+    const opt = document.createElement("option");
+    opt.value = dz;
+    opt.textContent = dz;
+    filterDZ.append(opt);
+  }
+  filterDZ.value = dzs.includes(current) ? current : "";
+  state.filters.dropzone = filterDZ.value;
+}
 
 // Export / Import / Merge
 function jumpKey(j: Jump): string {
@@ -389,6 +443,7 @@ byId("import-jumps").addEventListener("click", () => {
   pickJSON((parsed) => {
     state.jumps = parsed;
     saveJumps(state.jumps);
+    refreshDropzoneFilter();
     renderList();
     drawTree();
     flash(`Imported ${parsed.length} jumps.`);
@@ -402,6 +457,7 @@ byId("merge-jumps").addEventListener("click", () => {
     if (fresh.length === 0) { flash("No new jumps to merge."); return; }
     state.jumps = [...state.jumps, ...fresh].sort((a, b) => a.date.localeCompare(b.date));
     saveJumps(state.jumps);
+    refreshDropzoneFilter();
     renderList();
     drawTree();
     flash(`Merged ${fresh.length} new jump${fresh.length === 1 ? "" : "s"}.`);
@@ -414,6 +470,7 @@ byId("clear-jumps").addEventListener("click", () => {
   state.jumps = [];
   saveJumps(state.jumps);
   state.asOf = null;
+  refreshDropzoneFilter();
   renderList();
   refreshTimeline();
   drawTree();
@@ -437,6 +494,7 @@ function closeDelete() { deleteModal.hidden = true; pendingDeleteId = ""; }
 deleteConfirmBtn.addEventListener("click", () => {
   state.jumps = state.jumps.filter((j) => j.id !== pendingDeleteId);
   saveJumps(state.jumps);
+  refreshDropzoneFilter();
   renderList();
   refreshTimeline();
   drawTree();
@@ -550,6 +608,7 @@ byId("bulk-save").addEventListener("click", () => {
   if (added === 0) { flash("No valid rows to save."); return; }
   state.jumps.sort((a, b) => a.date.localeCompare(b.date));
   saveJumps(state.jumps);
+  refreshDropzoneFilter();
   renderList();
   drawTree();
   closeBulk();
@@ -573,6 +632,7 @@ function flash(msg: string) {
 
 // Initial paint
 (jumpForm.elements.namedItem("date") as HTMLInputElement).value = new Date().toISOString().slice(0, 10);
+refreshDropzoneFilter();
 renderList();
 refreshTimeline();
 drawTree();

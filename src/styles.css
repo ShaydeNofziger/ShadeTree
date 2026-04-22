@@ -702,6 +702,34 @@ button.ghost:hover {
 .dropdown-danger:hover { background: #b33; color: #fff; }
 .dropdown-sep { border: none; border-top: 1px solid var(--line); margin: 4px 0; }
 
+.jump-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.jump-filters input[type="date"],
+.jump-filters select {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.filter-sep { color: var(--ink-soft); font-size: 13px; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.page-info { font-size: 13px; color: var(--ink-soft); }
+
 button.small {
   font-size: 12px;
   padding: 4px 10px;
@@ -803,7 +831,8 @@ button.small {
 .jump-dz {
   color: var(--ink-soft);
   font-style: italic;
-  margin-left: auto;
+  font-size: 12px;
+  margin-top: 6px;
 }
 
 .jump-delete {

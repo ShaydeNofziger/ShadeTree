@@ -133,7 +133,30 @@
                   />
                 </div>
               </div>
+              <div class="jump-filters">
+                <input type="date" id="filter-date-from" aria-label="From date" />
+                <span class="filter-sep">–</span>
+                <input type="date" id="filter-date-to" aria-label="To date" />
+                <select id="filter-discipline" aria-label="Discipline">
+                  <option value="">All disciplines</option>
+                  <option value="belly">Belly</option>
+                  <option value="freefly">Freefly</option>
+                  <option value="swoop">Swoop</option>
+                  <option value="wingsuit">Wingsuit</option>
+                  <option value="tracking">Tracking</option>
+                  <option value="hop-pop">Hop &amp; Pop</option>
+                  <option value="student">Student</option>
+                  <option value="coach">Coach</option>
+                  <option value="aff">AFF Instr.</option>
+                  <option value="tandem-instructor">Tandem Instr.</option>
+                  <option value="tandem-student">Tandem Student</option>
+                </select>
+                <select id="filter-dropzone" aria-label="Dropzone">
+                  <option value="">All dropzones</option>
+                </select>
+              </div>
               <ol id="jump-list" class="jump-list"></ol>
+              <nav id="jump-pagination" class="pagination" aria-label="Jump list pages"></nav>
             </div>
 
             <div class="scenario-picker">
