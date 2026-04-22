@@ -13,14 +13,16 @@ const DISCIPLINE_LABEL: Record<Discipline, string> = {
   student: "Student",
   coach: "Coach",
   aff: "AFF Instr.",
-  tandem: "Tandem",
+  "tandem-instructor": "Tandem Instr.",
+  "tandem-student": "Tandem Student",
 };
 
 // Ordered by career arc: student → teaching → flat flying → angles/speed → canopy.
 const DISCIPLINE_ORDER: Discipline[] = [
   "student",
+  "tandem-student",
   "aff",
-  "tandem",
+  "tandem-instructor",
   "coach",
   "belly",
   "freefly",

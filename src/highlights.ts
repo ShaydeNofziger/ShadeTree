@@ -11,7 +11,7 @@ interface Highlight {
 const DISC_LABEL: Record<Discipline, string> = {
   belly: "Belly", freefly: "Freefly", swoop: "Swoop", wingsuit: "Wingsuit",
   tracking: "Tracking", "hop-pop": "Hop & Pop", student: "Student",
-  coach: "Coach", aff: "AFF", tandem: "Tandem",
+  coach: "Coach", aff: "AFF", "tandem-instructor": "Tandem Instr.", "tandem-student": "Tandem Student",
 };
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

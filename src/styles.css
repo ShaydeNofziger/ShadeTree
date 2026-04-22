@@ -18,7 +18,8 @@
   --disc-student: #7a7a7a;
   --disc-coach: #2f7a66;
   --disc-aff: #e07b3c;
-  --disc-tandem: #5a7aa5;
+  --disc-tandem-instructor: #5a7aa5;
+  --disc-tandem-student: #7a9abf;
 
   color-scheme: light;
 }
@@ -759,7 +760,8 @@ button.small {
 .disc-student { background: var(--disc-student); }
 .disc-coach { background: var(--disc-coach); }
 .disc-aff { background: var(--disc-aff); }
-.disc-tandem { background: var(--disc-tandem); }
+.disc-tandem-instructor { background: var(--disc-tandem-instructor); }
+.disc-tandem-student { background: var(--disc-tandem-student); }
 
 .jump-date {
   font-weight: 600;

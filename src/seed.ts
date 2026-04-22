@@ -63,7 +63,8 @@ const ALT: Record<Discipline, { exit: [number, number]; deploy: [number, number]
   "hop-pop": { exit: [4500, 5500],   deploy: [4400, 5400] },
   coach:     { exit: [13500, 14000], deploy: [4500, 5000] },
   aff:       { exit: [13500, 14000], deploy: [5000, 5500] },
-  tandem:    { exit: [13000, 14000], deploy: [5200, 5800] },
+  "tandem-instructor": { exit: [13000, 14000], deploy: [5200, 5800] },
+  "tandem-student":    { exit: [13000, 14000], deploy: [5500, 6000] },
 };
 
 interface Phase {
@@ -147,6 +148,8 @@ function generate(
 
 function beginnerJumps(): Jump[] {
   return generate(0xbe_91_00, 1, 4, [
+    // First tandem — the jump that starts it all
+    { months: 1, jumpsPerMonth: 1, mix: { "tandem-student": 1 }, travelBias: 0 },
     // AFF student: 27–35 jumps across ~3 months
     { months: 3, jumpsPerMonth: 11, mix: { student: 0.92, "hop-pop": 0.08 }, travelBias: 0 },
     // Fresh A-license: belly focus, first freefly attempts
@@ -163,6 +166,8 @@ function beginnerJumps(): Jump[] {
 
 function intermediateJumps(): Jump[] {
   return generate(0xff_10_20, 3, 5, [
+    // First tandem
+    { months: 1, jumpsPerMonth: 1, mix: { "tandem-student": 1 }, travelBias: 0 },
     // Student phase: ~30 jumps
     { months: 3, jumpsPerMonth: 11, mix: { student: 0.9, "hop-pop": 0.1 }, travelBias: 0 },
     // Novice belly year
@@ -195,7 +200,7 @@ function proSwooperJumps(): Jump[] {
     // Competition swooper — swoop dominates, teaching on the side
     { months: 24, jumpsPerMonth: 32, mix: { swoop: 0.52, "hop-pop": 0.14, coach: 0.1, aff: 0.08, freefly: 0.08, belly: 0.05, tracking: 0.03 }, travelBias: 0.35 },
     // Peak pro — swoop competition circuit, occasional fun jumps
-    { months: 30, jumpsPerMonth: 28, mix: { swoop: 0.58, "hop-pop": 0.12, coach: 0.08, tandem: 0.06, aff: 0.06, freefly: 0.05, belly: 0.03, tracking: 0.02 }, travelBias: 0.4 },
+    { months: 30, jumpsPerMonth: 28, mix: { swoop: 0.58, "hop-pop": 0.12, coach: 0.08, "tandem-instructor": 0.06, aff: 0.06, freefly: 0.05, belly: 0.03, tracking: 0.02 }, travelBias: 0.4 },
   ], [
     { at: 1, note: "AFF Cat A. The door opened and everything changed.", disc: "student" },
     { at: 30, note: "A-license check dive. Bought the beer, earned the card.", disc: "belly" },

@@ -8,7 +8,8 @@ export type Discipline =
   | "student"
   | "coach"
   | "aff"
-  | "tandem";
+  | "tandem-instructor"
+  | "tandem-student";
 
 export interface Jump {
   id: string;

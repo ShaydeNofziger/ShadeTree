@@ -11,7 +11,8 @@ const DISC_BADGE: Record<Discipline, string> = {
   student: "Student",
   coach: "Coach",
   aff: "AFF",
-  tandem: "Tandem",
+  "tandem-instructor": "TI",
+  "tandem-student": "TS",
 };
 
 export function renderJumpList(

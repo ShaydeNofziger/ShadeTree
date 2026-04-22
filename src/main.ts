@@ -321,7 +321,7 @@ byId("format-info").addEventListener("click", () => {
   const pop = document.createElement("div");
   pop.id = "format-popover";
   pop.className = "format-popover";
-  pop.innerHTML = `<pre>${example}</pre><p>Disciplines: belly, freefly, swoop, wingsuit, tracking, hop-pop, student, coach, aff, tandem</p>`;
+  pop.innerHTML = `<pre>${example}</pre><p>Disciplines: belly, freefly, swoop, wingsuit, tracking, hop-pop, student, coach, aff, tandem-instructor, tandem-student</p>`;
   byId("format-info").parentElement!.append(pop);
   const dismiss = (e: MouseEvent) => {
     if (!pop.contains(e.target as Node) && e.target !== byId("format-info")) {
@@ -429,7 +429,7 @@ aboutModal.addEventListener("keydown", (e) => { if (e.key === "Escape") aboutMod
 // Bulk log modal
 const bulkModal = byId("bulk-modal");
 const bulkGrid = byId("bulk-grid");
-const DISC_OPTIONS = `<option value="belly">Belly</option><option value="freefly">Freefly</option><option value="swoop">Swoop</option><option value="wingsuit">Wingsuit</option><option value="tracking">Tracking</option><option value="hop-pop">Hop &amp; Pop</option><option value="student">Student</option><option value="coach">Coach</option><option value="aff">AFF Instr.</option><option value="tandem">Tandem</option>`;
+const DISC_OPTIONS = `<option value="belly">Belly</option><option value="freefly">Freefly</option><option value="swoop">Swoop</option><option value="wingsuit">Wingsuit</option><option value="tracking">Tracking</option><option value="hop-pop">Hop &amp; Pop</option><option value="student">Student</option><option value="coach">Coach</option><option value="aff">AFF Instr.</option><option value="tandem-instructor">Tandem Instr.</option><option value="tandem-student">Tandem Student</option>`;
 
 const today = new Date().toISOString().slice(0, 10);
 
