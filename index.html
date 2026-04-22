@@ -31,6 +31,7 @@
           <div class="tree-stage">
             <svg id="tree" viewBox="0 0 900 700" preserveAspectRatio="xMidYMax meet" aria-label="Your jump history, as a tree"></svg>
             <button type="button" id="reset-zoom" class="reset-zoom" aria-label="Reset zoom">⌂</button>
+            <button type="button" id="about-open" class="about-btn" aria-label="About this tree">?</button>
             <aside id="leaf-tooltip" class="leaf-tooltip" hidden></aside>
           </div>
           <div class="timeline" id="timeline" hidden>
@@ -171,6 +172,27 @@
           <button id="bulk-add-row" class="ghost" title="Add another row">+</button>
           <button id="bulk-save" class="primary">Save all</button>
           <button id="bulk-cancel" class="ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="about-modal" class="modal-overlay" hidden>
+      <div class="modal modal-about" role="dialog" aria-label="About your tree">
+        <h2>Reading your tree</h2>
+        <dl class="about-list">
+          <dt>🌿 Placement</dt>
+          <dd>Each discipline grows its own branch. Leaves appear in the order you logged them — earliest jumps sit near the trunk, later ones march toward the tip. A seeded random scatter spreads leaves sideways so the branch fills out naturally. The same logbook always draws the same tree.</dd>
+          <dt>🟢 Size</dt>
+          <dd>Leaf radius scales with freefall distance (exit altitude minus deployment altitude). Longer freefalls produce bigger leaves.</dd>
+          <dt>🎨 Color</dt>
+          <dd>Each leaf is colored by the season it was jumped in — spring, summer, autumn, or winter.</dd>
+          <dt>✨ Milestones</dt>
+          <dd>Gold-ringed leaves mark milestones: jump #100, #500, #1,000, first jump in a new discipline, and your last student jump.</dd>
+          <dt>🌳 Trunk</dt>
+          <dd>Trunk height grows with the number of seasons you've been jumping.</dd>
+        </dl>
+        <div class="modal-actions">
+          <button id="about-close" class="ghost">Close</button>
         </div>
       </div>
     </div>

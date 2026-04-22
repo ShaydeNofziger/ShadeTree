@@ -418,6 +418,14 @@ deleteModal.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); deleteConfirmBtn.click(); }
 });
 
+// About modal
+const aboutModal = byId("about-modal");
+const aboutCloseBtn = byId("about-close");
+byId("about-open").addEventListener("click", () => { aboutModal.hidden = false; aboutCloseBtn.focus(); });
+aboutCloseBtn.addEventListener("click", () => { aboutModal.hidden = true; });
+aboutModal.addEventListener("click", (e) => { if (e.target === aboutModal) aboutModal.hidden = true; });
+aboutModal.addEventListener("keydown", (e) => { if (e.key === "Escape") aboutModal.hidden = true; });
+
 // Bulk log modal
 const bulkModal = byId("bulk-modal");
 const bulkGrid = byId("bulk-grid");
