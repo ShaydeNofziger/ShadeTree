@@ -22,8 +22,6 @@ look at:
   Filter by date range, discipline, or dropzone. Paginated at 100 jumps per
   page. Everything persists to `localStorage` on your device.
 
-![discipline palette: belly, freefly, swoop, wingsuit, tracking, hop-pop, student](#)
-
 ## Why this exists
 
 I built this for someone whose GitHub reads like a dropzone manifest — FlySight
