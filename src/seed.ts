@@ -45,7 +45,7 @@ export function scenarioById(id: ScenarioId): Scenario {
 /* ── Shared infrastructure ─────────────────────────────────────────── */
 
 const HOME_DZ = "Skydive Carolina";
-const REGIONAL: string[] = ["Skydive Paraclete XP", "Skydive Orange", "Raeford Drop Zone"];
+const REGIONAL: string[] = ["Skydive Paraclete XP", "Skydive Orange"];
 const TRAVEL: string[] = [
   "Skydive Deland", "Skydive Perris", "Skydive Arizona", "Skydive Elsinore",
   "Skydive Chicago", "Skydive Sebastian", "Skydive Spaceland Houston",

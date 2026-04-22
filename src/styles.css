@@ -669,6 +669,39 @@ button.ghost:hover {
   position: relative;
 }
 
+.dropdown { position: relative; }
+.dropdown-toggle { font-size: 16px !important; padding: 4px 8px !important; line-height: 1; }
+.dropdown-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 140px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.dropdown-panel[hidden] { display: none; }
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.dropdown-item:hover { background: var(--line); }
+.dropdown-danger { color: #b33; }
+.dropdown-danger:hover { background: #b33; color: #fff; }
+.dropdown-sep { border: none; border-top: 1px solid var(--line); margin: 4px 0; }
+
 button.small {
   font-size: 12px;
   padding: 4px 10px;

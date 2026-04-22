@@ -305,6 +305,26 @@ function jumpKey(j: Jump): string {
   return `${j.date}|${j.exitAltitude}|${j.deploymentAltitude}`;
 }
 
+// Tools dropdown
+const menuWrap = byId("logbook-menu");
+const menuToggle = menuWrap.querySelector(".dropdown-toggle") as HTMLButtonElement;
+const menuPanel = menuWrap.querySelector(".dropdown-panel") as HTMLElement;
+
+function toggleMenu(open?: boolean) {
+  const show = open ?? menuPanel.hidden;
+  menuPanel.hidden = !show;
+  menuToggle.setAttribute("aria-expanded", String(show));
+}
+
+menuToggle.addEventListener("click", () => toggleMenu());
+document.addEventListener("click", (e) => {
+  if (!menuPanel.hidden && !menuWrap.contains(e.target as Node)) toggleMenu(false);
+});
+// Close menu when any item is clicked
+menuPanel.addEventListener("click", (e) => {
+  if ((e.target as Element).classList.contains("dropdown-item")) toggleMenu(false);
+});
+
 byId("format-info").addEventListener("click", () => {
   const example = `[
   {
@@ -322,7 +342,7 @@ byId("format-info").addEventListener("click", () => {
   pop.id = "format-popover";
   pop.className = "format-popover";
   pop.innerHTML = `<pre>${example}</pre><p>Disciplines: belly, freefly, swoop, wingsuit, tracking, hop-pop, student, coach, aff, tandem-instructor, tandem-student</p>`;
-  byId("format-info").parentElement!.append(pop);
+  byId("logbook-menu").parentElement!.append(pop);
   const dismiss = (e: MouseEvent) => {
     if (!pop.contains(e.target as Node) && e.target !== byId("format-info")) {
       pop.remove();
@@ -386,6 +406,18 @@ byId("merge-jumps").addEventListener("click", () => {
     drawTree();
     flash(`Merged ${fresh.length} new jump${fresh.length === 1 ? "" : "s"}.`);
   });
+});
+
+byId("clear-jumps").addEventListener("click", () => {
+  if (state.jumps.length === 0) { flash("Logbook is already empty."); return; }
+  if (!confirm("Clear your entire logbook? This cannot be undone.")) return;
+  state.jumps = [];
+  saveJumps(state.jumps);
+  state.asOf = null;
+  renderList();
+  refreshTimeline();
+  drawTree();
+  flash("Logbook cleared.");
 });
 
 // Delete confirmation

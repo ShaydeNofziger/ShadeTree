@@ -114,10 +114,17 @@
               <div class="list-header">
                 <h2>Jumps</h2>
                 <div class="list-actions">
-                  <button type="button" id="import-jumps" class="ghost small" title="Replace logbook from JSON">Import</button>
-                  <button type="button" id="merge-jumps" class="ghost small" title="Add new jumps from JSON">Merge</button>
-                  <button type="button" id="format-info" class="ghost small" title="Show expected file format">?</button>
-                  <button type="button" id="export-jumps" class="ghost small" title="Export logbook to JSON">Export</button>
+                  <div class="dropdown" id="logbook-menu">
+                    <button type="button" class="ghost small dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Logbook tools">⚙</button>
+                    <div class="dropdown-panel" hidden>
+                      <button type="button" id="export-jumps" class="dropdown-item" title="Export logbook to JSON">Export</button>
+                      <button type="button" id="import-jumps" class="dropdown-item" title="Replace logbook from JSON">Import</button>
+                      <button type="button" id="merge-jumps" class="dropdown-item" title="Add new jumps from JSON">Merge</button>
+                      <button type="button" id="format-info" class="dropdown-item" title="Show expected file format">Format help</button>
+                      <hr class="dropdown-sep" />
+                      <button type="button" id="clear-jumps" class="dropdown-item dropdown-danger" title="Remove all jumps">Clear all</button>
+                    </div>
+                  </div>
                   <input
                     type="search"
                     id="jump-search"
